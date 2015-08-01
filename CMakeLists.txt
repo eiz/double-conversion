@@ -9,26 +9,6 @@ set(double-conversion_SOVERSION_PATCH 0)
 set(double-conversion_SOVERSION
   ${double-conversion_SOVERSION_MAJOR}.${double-conversion_SOVERSION_MINOR}.${double-conversion_SOVERSION_PATCH})
 
-# set paths for install -- empty initially
-# Offer the user the choice of overriding the installation directories
-set(INSTALL_BIN_DIR CACHE PATH "Installation directory for libraries")
-set(INSTALL_LIB_DIR CACHE PATH "Installation directory for libraries")
-set(INSTALL_INCLUDE_DIR CACHE PATH "Installation directory for include")
-# set suffix for CMake files used for packaging
-if(WIN32 AND NOT CYGWIN)
-  set(INSTALL_CMAKE_DIR CMake)
-else()
-  set(INSTALL_CMAKE_DIR lib/CMake/double-conversion)
-endif()
-
-# Make relative paths absolute (needed later)
-foreach(p LIB BIN INCLUDE CMAKE)
-  set(var INSTALL_${p}_DIR)
-  if(NOT IS_ABSOLUTE "${${var}}")
-    set(${var} "${CMAKE_INSTALL_PREFIX}/${${var}}")
-  endif()
-endforeach()
-
 #
 # set up include dirs
 include_directories("${PROJECT_SOURCE_DIR}"
@@ -47,47 +27,25 @@ if(BUILD_TESTING)
   add_subdirectory(test)
 endif()
 
-#
-# mention the library target as export library
-export(TARGETS double-conversion
-  FILE "${PROJECT_BINARY_DIR}/double-conversionLibraryDepends.cmake")
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/double-conversion/double-conversionConfigVersion.cmake"
+  VERSION ${double-conversion_VERSION}
+  COMPATIBILITY AnyNewerVersion)
 
-#
-# set this build as an importable package
-export(PACKAGE double-conversion)
+export(EXPORT double-conversion-targets
+  FILE "${CMAKE_CURRENT_BINARY_DIR}/double-conversion/double-conversionTargets.cmake")
+configure_file(double-conversionConfig.cmake
+  "${CMAKE_CURRENT_BINARY_DIR}/double-conversion/double-conversionConfig.cmake"
+  COPYONLY)
 
-#
-# make a cmake file -- in this case, all that needs defining
-# is double-conversion_INCLUDE_DIRS
-configure_file(double-conversionBuildTreeSettings.cmake.in
-  "${PROJECT_BINARY_DIR}/double-conversionBuildTreeSettings.cmake"
-  @ONLY)
+install(EXPORT double-conversion-targets
+  FILE double-conversionTargets.cmake
+  DESTINATION lib/double-conversion/cmake)
+install(
+  FILES
+    double-conversionConfig.cmake
+    "${CMAKE_CURRENT_BINARY_DIR}/double-conversion/double-conversionConfigVersion.cmake"
+  DESTINATION lib/double-conversion/cmake
+  COMPONENT Devel)
 
-#
-# determine where include is relative to the CMake dir in
-# in installed tree
-file(RELATIVE_PATH CONF_REL_INCLUDE_DIR "${INSTALL_CMAKE_DIR}"
-  "${INSTALL_INCLUDE_DIR}")
-
-#
-# sets up config to be used by CMake find_package
-configure_file(double-conversionConfig.cmake.in
-  "${PROJECT_BINARY_DIR}/double-conversionConfig.cmake"
-  @ONLY)
-#
-# Export version # checked by find_package
-configure_file(double-conversionConfigVersion.cmake.in
-  "${PROJECT_BINARY_DIR}/double-conversionConfigVersion.cmake"
-  @ONLY)
-#
-# install config files for find_package
-install(FILES
-  "${PROJECT_BINARY_DIR}/double-conversionConfig.cmake"
-  "${PROJECT_BINARY_DIR}/double-conversionConfigVersion.cmake"
-  DESTINATION "${INSTALL_CMAKE_DIR}" COMPONENT dev)
-
-
-#
-# generates install cmake files to find libraries in installation.
-install(EXPORT double-conversionLibraryDepends DESTINATION
-  "${INSTALL_CMAKE_DIR}" COMPONENT dev)
